@@ -47,7 +47,6 @@ const q = {
   userByName: db.prepare("SELECT * FROM users WHERE name = ?"),
   addUser: db.prepare("INSERT INTO users (name, pass, created) VALUES (?, ?, ?)"),
   setPass: db.prepare("UPDATE users SET pass = ? WHERE id = ?"),
-  delUser: db.prepare("DELETE FROM users WHERE id = ?"),
   addSession: db.prepare("INSERT INTO sessions (token_hash, user_id, created) VALUES (?, ?, ?)"),
   session: db.prepare("SELECT u.id, u.name, u.pass, s.created FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?"),
   delSession: db.prepare("DELETE FROM sessions WHERE token_hash = ?"),
@@ -208,11 +207,6 @@ async function handle(req, res) {
     }
     q.putGame.run(user.id, day, JSON.stringify(g), done ? 1 : 0, won ? 1 : 0, Date.now());
     return json(res, 200, { ok: true });
-  }
-  if (m === "POST" && p === "/api/delete-account") {
-    if (!checkPassword(String(body.password || ""), user.pass)) return fail(res, 401, "Password sbagliata.");
-    q.delUser.run(user.id);
-    return json(res, 200, { ok: true }, { "Set-Cookie": sessionCookie("", 0) });
   }
   return fail(res, 404, "Non trovato.");
 }

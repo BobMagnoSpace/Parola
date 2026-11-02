@@ -121,10 +121,7 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
 :root[data-theme="dark"] #authErr{color:#f2b8b5}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #authErr{color:#f2b8b5}}
 #authForm .btn{width:100%;margin-top:4px}
-.acct{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
-#delBox{margin-top:12px;display:flex;flex-direction:column;gap:8px}
-#delBox input{font:500 .95rem var(--f-body);padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
-.btn.danger{background:#b3261e}
+.acct{display:flex;justify-content:center;margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
 </style>
 </head>
 <body>
@@ -180,18 +177,9 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
         <div class="next"><small>Prossima parola</small><b id="countdown">--:--:--</b></div>
         <button class="btn" id="shareBtn" hidden>Condividi</button>
       </div>
-      <details id="acctBox">
-        <summary>Il tuo account</summary>
-        <div class="acct">
-          <button class="btn ghost" id="logoutBtn">Esci</button>
-          <button class="btn ghost" id="delOpen">Elimina account</button>
-        </div>
-        <div id="delBox" hidden>
-          <p class="note" style="margin:0">Vengono cancellate per sempre le tue partite e le statistiche. Scrivi la password per confermare.</p>
-          <input type="password" id="delPass" autocomplete="current-password" aria-label="Password">
-          <button class="btn danger" id="delBtn" style="font-size:.9rem;padding:9px 14px">Elimina per sempre</button>
-        </div>
-      </details>
+      <div class="acct">
+        <button class="btn ghost" id="logoutBtn">Esci</button>
+      </div>
     </div>
     <div id="helpView" class="help" hidden>
       <h2>Come si gioca</h2>
@@ -334,7 +322,7 @@ function submit(){
 async function api(method,url,body){
   const r=await fetch(url,{method,headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
   let data={}; try{ data=await r.json(); }catch(_){}
-  if(r.status===401 && url!=="/api/login" && url!=="/api/delete-account"){ showAuth(); }
+  if(r.status===401 && url!=="/api/login"){ showAuth(); }
   if(!r.ok){ const e=new Error(data.error||"Errore"); e.status=r.status; throw e; }
   return data;
 }
@@ -486,11 +474,6 @@ $("authForm").addEventListener("submit",async e=>{
   finally{ $("authBtn").disabled=false; }
 });
 $("logoutBtn").onclick=async()=>{ try{ await api("POST","/api/logout"); }catch(_){} try{ localStorage.removeItem("parola.pending"); }catch(_){} showAuth(); };
-$("delOpen").onclick=()=>{ $("delBox").hidden=!$("delBox").hidden; };
-$("delBtn").onclick=async()=>{
-  try{ await api("POST","/api/delete-account",{password:$("delPass").value}); $("delPass").value=""; $("delBox").hidden=true; showAuth(); toast("Account eliminato",2200); }
-  catch(err){ toast(err.message||"Non riuscito",2200); }
-};
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ready) refresh(); });
 
 // Coming back to a finished game: show stats and Condividi straight away, like the old game.
