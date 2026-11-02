@@ -95,12 +95,10 @@ main{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;
 .who{font-size:.8rem;color:var(--muted);text-align:center;margin:-4px 0 14px}
 details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
 summary{cursor:pointer;font-weight:700;font-size:.88rem;color:var(--accent)}
-.imp p{font-size:.84rem;color:var(--muted);margin:8px 0 10px;line-height:1.45}
 .grid2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 label{display:flex;flex-direction:column;gap:3px;font-size:.74rem;color:var(--muted);font-weight:500;min-width:0}
 input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
-.imp .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
 .note{font-size:.78rem;color:var(--muted)}
 .help ol{padding-left:20px;margin:0 0 12px;line-height:1.5;font-size:.9rem}
 .ex{display:flex;gap:4px;margin:6px 0}
@@ -182,24 +180,6 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
         <div class="next"><small>Prossima parola</small><b id="countdown">--:--:--</b></div>
         <button class="btn" id="shareBtn" hidden>Condividi</button>
       </div>
-      <details id="impBox">
-        <summary>Importa le statistiche del vecchio gioco</summary>
-        <div class="imp">
-          <p>Copia i numeri dalla schermata delle statistiche del vecchio gioco. Verranno sommati alle partite che giochi qui, e la serie di vittorie continua da dove eri.</p>
-          <div class="grid2">
-            <label for="iPlayed">Partite<input type="number" id="iPlayed" min="0" inputmode="numeric"></label>
-            <label for="iStreak">Vinte di fila<input type="number" id="iStreak" min="0" inputmode="numeric"></label>
-            <label for="iMax">Record<input type="number" id="iMax" min="0" inputmode="numeric"></label>
-          </div>
-          <p style="margin-bottom:6px">Distribuzione dei tentativi (1–6)</p>
-          <div class="grid6" id="iDist"></div>
-          <div class="actions">
-            <button class="btn" id="impSave" style="font-size:.9rem;padding:9px 14px">Salva</button>
-            <button class="btn ghost" id="impClear" hidden>Rimuovi importazione</button>
-            <span class="note" id="impNote"></span>
-          </div>
-        </div>
-      </details>
       <details id="acctBox">
         <summary>Il tuo account</summary>
         <div class="acct">
@@ -412,9 +392,6 @@ function paintStats(){
     wrap.appendChild(b); el.appendChild(n); el.appendChild(wrap);
   });
   $("shareBtn").hidden=!done;
-  $("impClear").hidden=!base;
-  $("impNote").textContent=base?"Importate il "+new Date(Date.UTC(2026,10,1)+(base.day-1)*864e5).toLocaleDateString("it-IT",{day:"numeric",month:"long",timeZone:"UTC"}):"";
-  if(base){ $("iPlayed").value=base.played; $("iStreak").value=base.streak; $("iMax").value=base.maxStreak; (base.dist||[]).forEach((v,i)=>$("iD"+i).value=v); }
 }
 function header(){
   const s=ready?computeStats():null;
@@ -429,27 +406,6 @@ $("statsBtn").onclick=()=>openSheet("stats");
 $("helpBtn").onclick=()=>openSheet("help");
 $("closeBtn").onclick=closeSheet;
 $("sheet").addEventListener("click",e=>{ if(e.target.id==="sheet") closeSheet(); });
-
-// import form
-for(let i=0;i<6;i++){ const l=document.createElement("label"); l.htmlFor="iD"+i; l.textContent=i+1; const inp=document.createElement("input"); inp.type="number"; inp.min="0"; inp.id="iD"+i; inp.inputMode="numeric"; l.appendChild(inp); $("iDist").appendChild(l); }
-const num=id=>Math.max(0,parseInt($(id).value,10)||0);
-$("impSave").onclick=async()=>{
-  const dist=[0,1,2,3,4,5].map(i=>num("iD"+i)), played=num("iPlayed");
-  const wins=dist.reduce((a,b)=>a+b,0);
-  if(!played){ toast("Inserisci almeno il numero di partite"); return; }
-  if(wins>played){ toast("La distribuzione supera il numero di partite",2200); return; }
-  base={played,dist,streak:num("iStreak"),maxStreak:Math.max(num("iMax"),num("iStreak")),day:today};
-  await writeBase(); paintStats(); header(); toast("Statistiche importate");
-};
-$("impClear").onclick=async()=>{
-  if($("impClear").dataset.sure!=="1"){ $("impClear").dataset.sure="1"; $("impClear").textContent="Tocca di nuovo per confermare"; return; }
-  $("impClear").dataset.sure=""; $("impClear").textContent="Rimuovi importazione";
-  base=null; await writeBase(); ["iPlayed","iStreak","iMax","iD0","iD1","iD2","iD3","iD4","iD5"].forEach(id=>$(id).value=""); paintStats(); header(); toast("Importazione rimossa");
-};
-async function writeBase(){
-  try{ await (base?api("PUT","/api/base",base):api("DELETE","/api/base")); }
-  catch(e){ if(e.status!==401) toast("Non riesco a salvare. Controlla la connessione.",2500); }
-}
 
 // share
 $("shareBtn").onclick=async()=>{
@@ -483,7 +439,7 @@ function applyData(d){
   // a move made offline that never reached the server
   try{ const p=JSON.parse(localStorage.getItem("parola.pending")||"null");
     if(p&&p.day&&Array.isArray(p.guesses)){ const s=recs["g"+p.day]; if(!s||(!s.done&&(s.guesses||[]).length<p.guesses.length)){ recs["g"+p.day]=p; pending=p; } else localStorage.removeItem("parola.pending"); } }catch(_){}
-  records=recs; base=d.base||null;
+  records=recs; base=null;
   $("who").textContent="Ciao "+me;
 }
 async function refresh(){

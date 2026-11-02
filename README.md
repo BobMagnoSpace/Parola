@@ -85,11 +85,7 @@ Apri l'indirizzo in Safari o Chrome e scegli **Aggiungi a schermata Home**: avra
 fly ssh console -C "node reset-password.js 'Nome' 'nuovapassword'"
 ```
 
-Poi comunica la nuova password a quella persona: può continuare a usarla o creare un nuovo account.
-
-## Le statistiche del vecchio gioco
-
-Ognuno può importarle da **Statistiche → Importa le statistiche del vecchio gioco**: partite, distribuzione, serie attuale e record. La serie continua da lì.
+Poi comunica la nuova password a quella persona.
 
 ## Costi e backup
 

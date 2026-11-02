@@ -209,15 +209,6 @@ async function handle(req, res) {
     q.putGame.run(user.id, day, JSON.stringify(g), done ? 1 : 0, won ? 1 : 0, Date.now());
     return json(res, 200, { ok: true });
   }
-  if (m === "PUT" && p === "/api/base") {
-    const d = body;
-    const ok = int(d.played, 0, 100000) && Array.isArray(d.dist) && d.dist.length === 6 && d.dist.every((v) => int(v, 0, 100000))
-      && int(d.streak, 0, 100000) && int(d.maxStreak, 0, 100000) && int(d.day, 1, 999999);
-    if (!ok) return fail(res, 400, "Statistiche non valide.");
-    q.putBase.run(user.id, JSON.stringify({ played: d.played, dist: d.dist, streak: d.streak, maxStreak: d.maxStreak, day: d.day }));
-    return json(res, 200, { ok: true });
-  }
-  if (m === "DELETE" && p === "/api/base") { q.delBase.run(user.id); return json(res, 200, { ok: true }); }
   if (m === "POST" && p === "/api/delete-account") {
     if (!checkPassword(String(body.password || ""), user.pass)) return fail(res, 401, "Password sbagliata.");
     q.delUser.run(user.id);
