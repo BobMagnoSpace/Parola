@@ -490,7 +490,7 @@ async function refresh(){
   try{
     const d=await api("GET","/api/me");
     applyData(d);
-    if(!ready){ ready=true; $("auth").hidden=true; loadToday(); }
+    if(!ready){ ready=true; $("auth").hidden=true; loadToday(); statsIfDone(); }
     else if(!busy){ const r=records["g"+today]; if(r&&(r.guesses||[]).length!==guesses.length){ const t=current; loadToday(); current=t; paintTyping(); } }
     header(); if(!$("sheet").hidden&&!$("statsView").hidden) paintStats();
     flush();
@@ -535,10 +535,13 @@ $("delBtn").onclick=async()=>{
 };
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ready) refresh(); });
 
+// Coming back to a finished game: show stats and Condividi straight away, like the old game.
+function statsIfDone(){ if(done) setTimeout(()=>{ if(done && $("sheet").hidden) openStats(); },400); }
+
 // ---- boot ----
 buildBoard(); buildKb(); paintBoard(); header(); tick();
 (async()=>{
-  try{ await api("GET","/api/me").then(d=>{ applyData(d); ready=true; loadToday(); header(); flush(); }); }
+  try{ await api("GET","/api/me").then(d=>{ applyData(d); ready=true; loadToday(); header(); flush(); statsIfDone(); }); }
   catch(e){ if(e.status!==401){ $("sub").textContent="Server non raggiungibile. Riprovo…"; setTimeout(refresh,4000); } }
 })();
 })();
