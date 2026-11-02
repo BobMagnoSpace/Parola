@@ -82,6 +82,7 @@ main{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;
 .nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;margin-bottom:20px}
 .nums b{display:block;font-family:var(--f-display);font-weight:600;font-size:2rem;font-variant-numeric:tabular-nums;line-height:1.1}
 .nums span{font-size:.74rem;color:var(--muted);line-height:1.2;display:block}
+.jolly{margin:-8px 0 18px;text-align:center;font-size:.86rem;color:var(--muted);line-height:1.4}
 .dist{display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center;margin-bottom:20px;font-variant-numeric:tabular-nums}
 .dist .n{font-weight:700;font-size:.9rem;text-align:right}
 .bar{background:var(--miss);color:var(--tile-ink);font-weight:700;font-size:.82rem;padding:3px 7px;text-align:right;border-radius:3px;min-width:24px;box-sizing:border-box}
@@ -171,6 +172,7 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
         <div><b id="sStreak">0</b><span>Vinte di fila</span></div>
         <div><b id="sMax">0</b><span>Record di fila</span></div>
       </div>
+      <p class="jolly" id="jollyLine"></p>
       <h2>Distribuzione dei tentativi</h2>
       <div class="dist" id="dist"></div>
       <div class="foot">
@@ -195,6 +197,7 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
       <div class="ex"><div class="tile">v</div><div class="tile">e</div><div class="tile">n</div><div class="tile absent">t</div><div class="tile">o</div></div>
       <p class="note">La T non è nella parola.</p>
       <p class="note" style="margin-top:14px">Una parola nuova ogni giorno a mezzanotte, nel tuo fuso orario. La parola dipende solo dalla data, quindi chi gioca in Italia o in California ha la stessa parola per lo stesso giorno, anche quando cambia l'ora legale.</p>
+      <p class="note">🃏 <b>Jolly:</b> ogni 25 vittorie di fila guadagni un jolly (puoi averne uno alla volta). Se salti un giorno, il jolly viene usato da solo e la serie continua. Se invece giochi e non indovini, la serie si azzera.</p>
     </div>
   </div>
 </div>
@@ -313,7 +316,7 @@ function submit(){
   }
   setTimeout(()=>{
     busy=false; paintKb();
-    if(won){ row.classList.add("win"); toast(["Solo la zia!","🚀🚀","👏🏼👏🏼👏🏼","🤔","Daje!!","Per un pelo!"][r],1800); setTimeout(()=>openStats(),1900); }
+    if(won){ row.classList.add("win"); const js=computeStats(); if(js.earnedOn===today) setTimeout(()=>toast("🃏 "+js.streak+" di fila: hai guadagnato un jolly!",2600),1900); toast(["Solo la zia!","🚀🚀","👏🏼👏🏼👏🏼","🤔","Daje!!","Per un pelo!"][r],1800); setTimeout(()=>openStats(),1900); }
     else if(done){ toast("La parola era "+answer.toUpperCase(),3500); setTimeout(()=>openStats(),2600); }
   }, step*LEN+300);
 }
@@ -354,25 +357,36 @@ function loadToday(){
 }
 
 // ---- stats ----
+// Jolly: earned at every 25 wins in a row (max 1 held). A day with no game uses it
+// automatically and the streak survives; a lost game still ends the streak.
+const JOLLY_EVERY=25;
 function computeStats(){
-  const fin=new Set(), wonD=new Set(), dist=[0,0,0,0,0,0];
-  Object.values(records).forEach(r=>{ if(!r||!r.done) return; fin.add(r.day); if(r.won){ wonD.add(r.day); const n=(r.guesses||[]).length; if(n>=1&&n<=6) dist[n-1]++; } });
-  let played=fin.size, max=0;
-  if(base){ played+=base.played||0; (base.dist||[]).forEach((v,i)=>dist[i]+=v||0); max=base.maxStreak||0; }
+  const byDay={}, dist=[0,0,0,0,0,0]; let played=0;
+  Object.values(records).forEach(r=>{ if(!r||!r.day) return; byDay[r.day]=r;
+    if(r.done){ played++; if(r.won){ const n=(r.guesses||[]).length; if(n>=1&&n<=6) dist[n-1]++; } } });
   const wins=dist.reduce((a,b)=>a+b,0);
-  // current streak
-  let d=wonD.has(today)?today:today-1, run=0;
-  while(wonD.has(d)){ run++; d--; }
-  let streak=run;
-  if(base && d<=base.day && !fin.has(d)) streak+=base.streak||0;
-  // best run among own games
-  const days=[...wonD].sort((a,b)=>a-b); let cur=0,prev=null;
-  days.forEach(x=>{ cur=(prev!==null&&x===prev+1)?cur+1:1; prev=x; if(cur>max) max=cur; });
-  if(streak>max) max=streak;
-  return {played,wins,pct:played?Math.round(wins/played*100):0,streak,max,dist};
+  const playedDays=Object.keys(byDay).map(Number).filter(d=>byDay[d].done);
+  let streak=0, max=0, jolly=0, usedOn=[], earnedOn=null;
+  if(playedDays.length){
+    for(let d=Math.min(...playedDays); d<=today; d++){
+      const r=byDay[d];
+      if(r&&r.done&&r.won){ streak++; if(streak>max) max=streak;
+        if(streak%JOLLY_EVERY===0 && jolly===0){ jolly=1; earnedOn=d; } }
+      else if(r&&r.done){ streak=0; }
+      else if(d===today){ /* today not finished yet: nothing to decide */ }
+      else if(streak>0 && jolly>0){ jolly=0; usedOn.push(d); }
+      else { streak=0; }
+    }
+  }
+  return {played,wins,pct:played?Math.round(wins/played*100):0,streak,max,dist,jolly,usedOn,earnedOn,
+    nextAt:(Math.floor(streak/JOLLY_EVERY)+1)*JOLLY_EVERY};
 }
 function paintStats(){
   const s=computeStats();
+  $("jollyLine").textContent = s.jolly
+    ? "🃏 Hai un jolly. Se salti un giorno, salva la tua serie."
+    : (s.streak ? "🃏 Prossimo jolly a "+s.nextAt+" vinte di fila: ne mancano "+(s.nextAt-s.streak)+"."
+                : "🃏 Vinci "+JOLLY_EVERY+" giorni di fila per guadagnare un jolly.");
   $("sPlayed").textContent=s.played; $("sPct").textContent=s.pct; $("sStreak").textContent=s.streak; $("sMax").textContent=s.max;
   const top=Math.max(1,...s.dist), el=$("dist"); el.innerHTML="";
   s.dist.forEach((v,i)=>{
@@ -385,7 +399,7 @@ function paintStats(){
 }
 function header(){
   const s=ready?computeStats():null;
-  $("sub").textContent="N° "+today+" · "+dateLabel()+(s&&s.streak?" · 🔥 "+s.streak:"");
+  $("sub").textContent="N° "+today+" · "+dateLabel()+(s&&s.streak?" · 🔥 "+s.streak:"")+(s&&s.jolly?" · 🃏":"");
 }
 
 // ---- sheet ----
@@ -477,7 +491,12 @@ $("logoutBtn").onclick=async()=>{ try{ await api("POST","/api/logout"); }catch(_
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ready) refresh(); });
 
 // Coming back to a finished game: show stats and Condividi straight away, like the old game.
-function statsIfDone(){ if(done) setTimeout(()=>{ if(done && $("sheet").hidden) openStats(); },400); }
+function jollyNotice(){
+  const s=computeStats(), u=s.usedOn[s.usedOn.length-1];
+  if(u && u>=today-1 && !done){ try{ if(localStorage.getItem("parola.jollyNote")===String(u)) return; localStorage.setItem("parola.jollyNote",String(u)); }catch(_){}
+    setTimeout(()=>toast("🃏 Ieri non hai giocato: il jolly ha salvato la tua serie!",3500),600); }
+}
+function statsIfDone(){ jollyNotice(); if(done) setTimeout(()=>{ if(done && $("sheet").hidden) openStats(); },400); }
 
 // ---- boot ----
 buildBoard(); buildKb(); paintBoard(); header(); tick();
