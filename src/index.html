@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14171e" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Parola">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233e8f5a'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='700' font-size='20' fill='white' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
+<title>Parola del Giorno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-screen game — slim header, centered 6×5 tile board, keyboard docked at the bottom; stats open as an in-page sheet. */
+:root{
+  --bg:#f6f4ef; --surface:#ffffff; --ink:#1c2230; --muted:#6a6f7c; --line:#d9d5cc;
+  --key:#e4e0d6; --key-ink:#1c2230;
+  --hit:#3e8f5a; --near:#c9a227; --miss:#8a8f9a; --tile-ink:#ffffff;
+  --accent:#1f4e8c;
+  --f-display:"Bricolage Grotesque", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171e; --surface:#1d212b; --ink:#eceae4; --muted:#9a9faa; --line:#343a47;
+  --key:#2e3441; --key-ink:#eceae4;
+  --hit:#3f9a60; --near:#bf9a2a; --miss:#4a505d; --tile-ink:#ffffff;
+  --accent:#7fa8e0; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#14171e; --surface:#1d212b; --ink:#eceae4; --muted:#9a9faa; --line:#343a47;
+  --key:#2e3441; --key-ink:#eceae4;
+  --hit:#3f9a60; --near:#bf9a2a; --miss:#4a505d; --tile-ink:#ffffff;
+  --accent:#7fa8e0; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+html{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-tap-highlight-color:transparent;
+  padding-left:max(12px, env(safe-area-inset-left, 0px));padding-right:max(12px, env(safe-area-inset-right, 0px))}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:8px;border-bottom:1px solid var(--line);max-width:520px;width:100%;margin:0 auto}
+.brand{display:flex;flex-direction:column;min-width:0}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.55rem;letter-spacing:.02em;margin:0;line-height:1}
+.sub{font-size:.78rem;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;height:38px;min-width:38px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;font:500 .85rem var(--f-body);cursor:pointer}
+.icon-btn:focus-visible,.key:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.icon-btn svg{width:18px;height:18px}
+main{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding-block:10px}
+#board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;height:min(100%, 410px);aspect-ratio:5/6;max-width:100%}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tile{border:2px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-display);font-weight:800;font-size:clamp(1.3rem,6.5vw,2rem);text-transform:uppercase;color:var(--ink);background:var(--surface);user-select:none}
+.tile.filled{border-color:var(--muted);animation:pop .1s ease-out}
+.tile.correct,.tile.present,.tile.absent{color:var(--tile-ink);border-color:transparent}
+.tile.correct{background:var(--hit)} .tile.present{background:var(--near)} .tile.absent{background:var(--miss)}
+.tile.flip{animation:flip .5s ease forwards}
+.row.shake{animation:shake .4s}
+.row.win .tile{animation:hop .5s ease}
+@keyframes pop{50%{transform:scale(1.08)}}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes hop{40%{transform:translateY(-12px)}}
+@media (prefers-reduced-motion: reduce){.tile,.row{animation:none!important}}
+#kb{max-width:520px;width:100%;margin:0 auto;padding-bottom:10px;display:flex;flex-direction:column;gap:7px}
+.krow{display:flex;gap:5px;justify-content:center}
+.key{appearance:none;border:0;border-radius:6px;background:var(--key);color:var(--key-ink);font:700 1rem var(--f-body);text-transform:uppercase;
+  height:54px;flex:1 1 0;min-width:0;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation}
+.key.wide{flex:1.6 1 0;font-size:.72rem;letter-spacing:.04em}
+.key.correct{background:var(--hit);color:var(--tile-ink)} .key.present{background:var(--near);color:var(--tile-ink)} .key.absent{background:var(--miss);color:var(--tile-ink)}
+.key:active{filter:brightness(.92)}
+#toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top, 0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:700;font-size:.92rem;z-index:30;max-width:calc(100% - 32px);text-align:center}
+/* sheet */
+#sheet{position:fixed;inset:0;z-index:20;background:color-mix(in srgb, var(--bg) 55%, transparent);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;
+  padding:calc(24px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.18);width:100%;max-width:440px;padding:20px 20px 22px;position:relative}
+.card h2{font-family:var(--f-display);font-weight:800;font-size:.95rem;letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px;text-align:center}
+.close{position:absolute;top:10px;right:10px;border:0;background:none;color:var(--ink);width:36px;height:36px;cursor:pointer;border-radius:8px}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;margin-bottom:20px}
+.nums b{display:block;font-family:var(--f-display);font-weight:600;font-size:2rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.nums span{font-size:.74rem;color:var(--muted);line-height:1.2;display:block}
+.dist{display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center;margin-bottom:20px;font-variant-numeric:tabular-nums}
+.dist .n{font-weight:700;font-size:.9rem;text-align:right}
+.bar{background:var(--miss);color:var(--tile-ink);font-weight:700;font-size:.82rem;padding:3px 7px;text-align:right;border-radius:3px;min-width:24px;box-sizing:border-box}
+.bar.now{background:var(--hit)}
+.foot{display:flex;align-items:center;gap:14px;border-top:1px solid var(--line);padding-top:16px}
+.foot .next{flex:1;min-width:0}
+.foot .next small{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.foot .next b{font-family:var(--f-display);font-weight:600;font-size:1.7rem;font-variant-numeric:tabular-nums}
+.btn{appearance:none;border:0;border-radius:10px;background:var(--hit);color:var(--tile-ink);font:700 1rem var(--f-body);padding:12px 18px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);font-size:.88rem;padding:9px 12px}
+.who{font-size:.8rem;color:var(--muted);text-align:center;margin:-4px 0 14px}
+details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:700;font-size:.88rem;color:var(--accent)}
+.imp p{font-size:.84rem;color:var(--muted);margin:8px 0 10px;line-height:1.45}
+.grid2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+label{display:flex;flex-direction:column;gap:3px;font-size:.74rem;color:var(--muted);font-weight:500;min-width:0}
+input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
+.imp .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.note{font-size:.78rem;color:var(--muted)}
+.help ol{padding-left:20px;margin:0 0 12px;line-height:1.5;font-size:.9rem}
+.ex{display:flex;gap:4px;margin:6px 0}
+.ex .tile{width:34px;height:34px;font-size:1.1rem;flex:none}
+/* accesso */
+#auth{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;display:flex;justify-content:center;align-items:flex-start;
+  padding:calc(40px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.auth{width:100%;max-width:380px;display:flex;flex-direction:column;gap:18px}
+.logo{display:flex;gap:5px;justify-content:center}
+.logo .tile{width:44px;height:44px;font-size:1.5rem;flex:none}
+.auth .lead{text-align:center;color:var(--muted);margin:0;line-height:1.45}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--key);border-radius:10px;padding:3px}
+.tabs button{appearance:none;border:0;background:transparent;color:var(--ink);font:700 .92rem var(--f-body);padding:9px;border-radius:8px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#authForm{display:flex;flex-direction:column;gap:12px}
+#authForm label{font-size:.82rem;color:var(--ink);font-weight:500;gap:5px}
+#authForm input{font:500 1rem var(--f-body);padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);width:100%}
+#authForm .hint{font-size:.76rem;color:var(--muted);font-weight:400}
+#authErr{color:#b3261e;font-size:.88rem;font-weight:500;min-height:1.2em;margin:0}
+:root[data-theme="dark"] #authErr{color:#f2b8b5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #authErr{color:#f2b8b5}}
+#authForm .btn{width:100%;margin-top:4px}
+.acct{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+#delBox{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+#delBox input{font:500 .95rem var(--f-body);padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.btn.danger{background:#b3261e}
+</style>
+</head>
+<body>
+
+<div id="auth" hidden>
+  <div class="auth">
+    <div class="logo" aria-hidden="true"><div class="tile correct">p</div><div class="tile present">a</div><div class="tile absent">r</div><div class="tile correct">o</div><div class="tile present">l</div><div class="tile correct">a</div></div>
+    <p class="lead">La parola del giorno, uguale per tutta la famiglia.</p>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabLogin" aria-selected="true">Accedi</button>
+      <button type="button" role="tab" id="tabReg" aria-selected="false">Registrati</button>
+    </div>
+    <form id="authForm" novalidate>
+      <label for="aName">Nome<input id="aName" name="username" autocomplete="username" autocapitalize="words" maxlength="20" required></label>
+      <label for="aPass">Password<input id="aPass" name="password" type="password" autocomplete="current-password" maxlength="100" required><span class="hint" id="passHint" hidden>Almeno 6 caratteri.</span></label>
+      <label for="aCode" id="codeRow" hidden>Codice famiglia<input id="aCode" name="invite" autocomplete="off" autocapitalize="none"><span class="hint">Te lo dà chi ti ha invitato.</span></label>
+      <p id="authErr" role="alert"></p>
+      <button class="btn" type="submit" id="authBtn">Accedi</button>
+    </form>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <h1>PAROLA</h1>
+    <div class="sub" id="sub">Caricamento…</div>
+  </div>
+  <div style="display:flex;gap:6px">
+    <button class="icon-btn" id="helpBtn" aria-label="Come si gioca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg></button>
+    <button class="icon-btn" id="statsBtn" aria-label="Statistiche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
+  </div>
+</header>
+
+<main><div id="board" aria-label="Griglia di gioco"></div></main>
+<div id="kb" aria-label="Tastiera"></div>
+<div id="toast" role="status" hidden></div>
+
+<div id="sheet" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <button class="close" id="closeBtn" aria-label="Chiudi"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div id="statsView">
+      <h2 id="sheetTitle">Statistiche</h2>
+      <div class="who" id="who"></div>
+      <div class="nums">
+        <div><b id="sPlayed">0</b><span>Partite</span></div>
+        <div><b id="sPct">0</b><span>% Vittorie</span></div>
+        <div><b id="sStreak">0</b><span>Vinte di fila</span></div>
+        <div><b id="sMax">0</b><span>Record di fila</span></div>
+      </div>
+      <h2>Distribuzione dei tentativi</h2>
+      <div class="dist" id="dist"></div>
+      <div class="foot">
+        <div class="next"><small>Prossima parola</small><b id="countdown">--:--:--</b></div>
+        <button class="btn" id="shareBtn" hidden>Condividi</button>
+      </div>
+      <details id="impBox">
+        <summary>Importa le statistiche del vecchio gioco</summary>
+        <div class="imp">
+          <p>Copia i numeri dalla schermata delle statistiche del vecchio gioco. Verranno sommati alle partite che giochi qui, e la serie di vittorie continua da dove eri.</p>
+          <div class="grid2">
+            <label for="iPlayed">Partite<input type="number" id="iPlayed" min="0" inputmode="numeric"></label>
+            <label for="iStreak">Vinte di fila<input type="number" id="iStreak" min="0" inputmode="numeric"></label>
+            <label for="iMax">Record<input type="number" id="iMax" min="0" inputmode="numeric"></label>
+          </div>
+          <p style="margin-bottom:6px">Distribuzione dei tentativi (1–6)</p>
+          <div class="grid6" id="iDist"></div>
+          <div class="actions">
+            <button class="btn" id="impSave" style="font-size:.9rem;padding:9px 14px">Salva</button>
+            <button class="btn ghost" id="impClear" hidden>Rimuovi importazione</button>
+            <span class="note" id="impNote"></span>
+          </div>
+        </div>
+      </details>
+      <details id="acctBox">
+        <summary>Il tuo account</summary>
+        <div class="acct">
+          <button class="btn ghost" id="logoutBtn">Esci</button>
+          <button class="btn ghost" id="delOpen">Elimina account</button>
+        </div>
+        <div id="delBox" hidden>
+          <p class="note" style="margin:0">Vengono cancellate per sempre le tue partite e le statistiche. Scrivi la password per confermare.</p>
+          <input type="password" id="delPass" autocomplete="current-password" aria-label="Password">
+          <button class="btn danger" id="delBtn" style="font-size:.9rem;padding:9px 14px">Elimina per sempre</button>
+        </div>
+      </details>
+    </div>
+    <div id="helpView" class="help" hidden>
+      <h2>Come si gioca</h2>
+      <ol>
+        <li>Indovina la parola di 5 lettere in 6 tentativi.</li>
+        <li>Ogni tentativo deve essere una parola italiana valida.</li>
+        <li>Dopo ogni tentativo le lettere cambiano colore.</li>
+      </ol>
+      <div class="ex"><div class="tile correct">g</div><div class="tile">a</div><div class="tile">t</div><div class="tile">t</div><div class="tile">o</div></div>
+      <p class="note">La G è nella parola e al posto giusto.</p>
+      <div class="ex"><div class="tile">p</div><div class="tile present">i</div><div class="tile">a</div><div class="tile">n</div><div class="tile">o</div></div>
+      <p class="note">La I è nella parola ma in un altro posto.</p>
+      <div class="ex"><div class="tile">v</div><div class="tile">e</div><div class="tile">n</div><div class="tile absent">t</div><div class="tile">o</div></div>
+      <p class="note">La T non è nella parola.</p>
+      <p class="note" style="margin-top:14px">Una parola nuova ogni giorno a mezzanotte, nel tuo fuso orario. La parola dipende solo dalla data, quindi chi gioca in Italia o in California ha la stessa parola per lo stesso giorno, anche quando cambia l'ora legale.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/*WORDS*/
+(function(){
+"use strict";
+const LEN=5, ROWS=6;
+// ---- date: calendar day number, independent of DST ----
+const EPOCH=Date.UTC(2026,10,1);
+function dayNum(d){d=d||new Date();return Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-EPOCH)/864e5)+1;}
+function wordFor(n){const L=SOL.length;return SOL[((n-1)%L+L)%L];}
+function dateLabel(){return new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});}
+
+// ---- state ----
+let today=dayNum(), answer=wordFor(today);
+let guesses=[], current="", done=false, won=false, busy=false;
+let records={};   // "g<n>" -> {day,guesses,done,won}
+let base=null;    // imported stats
+let ready=false;
+
+const $=id=>document.getElementById(id);
+const boardEl=$("board"), kbEl=$("kb");
+
+// ---- scoring (handles double letters) ----
+function score(g,a){
+  const res=Array(LEN).fill("absent"), left={};
+  for(let i=0;i<LEN;i++){ if(g[i]===a[i]) res[i]="correct"; else left[a[i]]=(left[a[i]]||0)+1; }
+  for(let i=0;i<LEN;i++){ if(res[i]!=="correct" && left[g[i]]>0){ res[i]="present"; left[g[i]]--; } }
+  return res;
+}
+
+// ---- board ----
+function buildBoard(){
+  boardEl.innerHTML="";
+  for(let r=0;r<ROWS;r++){
+    const row=document.createElement("div"); row.className="row";
+    for(let c=0;c<LEN;c++){ const t=document.createElement("div"); t.className="tile"; row.appendChild(t); }
+    boardEl.appendChild(row);
+  }
+}
+function paintBoard(){
+  for(let r=0;r<ROWS;r++){
+    const row=boardEl.children[r], g=guesses[r], sc=g?score(g,answer):null;
+    for(let c=0;c<LEN;c++){
+      const t=row.children[c];
+      if(g){ t.textContent=g[c]; t.className="tile "+sc[c]; }
+      else if(r===guesses.length && !done){ t.textContent=current[c]||""; t.className="tile"+(current[c]?" filled":""); }
+      else { t.textContent=""; t.className="tile"; }
+    }
+  }
+}
+function paintTyping(){
+  if(done) return; const row=boardEl.children[guesses.length]; if(!row) return;
+  for(let c=0;c<LEN;c++){ const t=row.children[c]; const ch=current[c]||""; if(t.textContent!==ch){ t.textContent=ch; t.className="tile"+(ch?" filled":""); } }
+}
+
+// ---- keyboard ----
+const LAYOUT=["qwertyuiop","asdfghjkl","+zxcvbnm-"];
+function buildKb(){
+  kbEl.innerHTML="";
+  LAYOUT.forEach(r=>{
+    const row=document.createElement("div"); row.className="krow";
+    for(const ch of r){
+      const b=document.createElement("button"); b.className="key"; b.type="button";
+      if(ch==="+"){ b.textContent="Invio"; b.classList.add("wide"); b.dataset.k="Enter"; }
+      else if(ch==="-"){ b.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'; b.classList.add("wide"); b.dataset.k="Backspace"; b.setAttribute("aria-label","Cancella"); }
+      else { b.textContent=ch; b.dataset.k=ch; }
+      row.appendChild(b);
+    }
+    kbEl.appendChild(row);
+  });
+}
+function paintKb(){
+  const rank={absent:1,present:2,correct:3}, st={};
+  guesses.forEach(g=>score(g,answer).forEach((s,i)=>{ if(!st[g[i]]||rank[s]>rank[st[g[i]]]) st[g[i]]=s; }));
+  kbEl.querySelectorAll(".key").forEach(b=>{ const k=b.dataset.k; b.className="key"+(k.length>1?" wide":"")+(st[k]?" "+st[k]:""); });
+}
+kbEl.addEventListener("click",e=>{ const b=e.target.closest(".key"); if(b){ press(b.dataset.k); b.blur(); } });
+document.addEventListener("keydown",e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  if(!$("auth").hidden || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if(!$("sheet").hidden){ if(e.key==="Escape") closeSheet(); return; }
+  const k=e.key;
+  if(k==="Enter"||k==="Backspace"||/^[a-zA-Z]$/.test(k)){ e.preventDefault(); press(k.length===1?k.toLowerCase():k); }
+});
+
+// ---- toast ----
+let toastT;
+function toast(msg,ms){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,ms||1600); }
+
+// ---- input ----
+function press(k){
+  if(done||busy) return;
+  if(!ready){ toast("Un attimo, sto caricando le tue partite…"); return; }
+  if(k==="Backspace"){ current=current.slice(0,-1); paintTyping(); return; }
+  if(k==="Enter"){ submit(); return; }
+  if(/^[a-z]$/.test(k) && current.length<LEN){ current+=k; paintTyping(); }
+}
+function shake(){ const row=boardEl.children[guesses.length]; row.classList.remove("shake"); void row.offsetWidth; row.classList.add("shake"); }
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function submit(){
+  if(current.length<LEN){ toast("Servono 5 lettere"); shake(); return; }
+  if(!OK.has(current)){ toast("Non è nel dizionario"); shake(); return; }
+  const g=current, r=guesses.length, sc=score(g,answer), row=boardEl.children[r];
+  guesses.push(g); current="";
+  won = g===answer; done = won || guesses.length===ROWS;
+  saveGame();
+  busy=true;
+  const step=reduce?0:300;
+  for(let c=0;c<LEN;c++){
+    setTimeout(()=>{ const t=row.children[c]; if(!reduce) t.classList.add("flip"); setTimeout(()=>{ t.className="tile "+sc[c]+(reduce?"":" flip"); },reduce?0:250); }, c*step);
+  }
+  setTimeout(()=>{
+    busy=false; paintKb();
+    if(won){ row.classList.add("win"); toast(["Solo la zia!","🚀🚀","👏🏼👏🏼👏🏼","🤔","Daje!!","Per un pelo!"][r],1800); setTimeout(()=>openStats(),1900); }
+    else if(done){ toast("La parola era "+answer.toUpperCase(),3500); setTimeout(()=>openStats(),2600); }
+  }, step*LEN+300);
+}
+
+// ---- persistence ----
+async function api(method,url,body){
+  const r=await fetch(url,{method,headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
+  let data={}; try{ data=await r.json(); }catch(_){}
+  if(r.status===401 && url!=="/api/login" && url!=="/api/delete-account"){ showAuth(); }
+  if(!r.ok){ const e=new Error(data.error||"Errore"); e.status=r.status; throw e; }
+  return data;
+}
+let chain=Promise.resolve(), pending=null;
+function saveGame(){
+  const rec={day:today,guesses:guesses.slice(),done:done,won:won};
+  records["g"+today]=rec;
+  try{ localStorage.setItem("parola.pending", JSON.stringify(rec)); }catch(_){}
+  pending=rec; flush();
+}
+function flush(){
+  if(!pending) return chain;
+  const rec=pending;
+  chain=chain.then(()=>api("PUT","/api/game/"+rec.day,rec)).then(()=>{
+    if(pending===rec){ pending=null; try{ localStorage.removeItem("parola.pending"); }catch(_){} }
+  },e=>{
+    if(e.status===409||e.status===400){ if(pending===rec) pending=null; try{ localStorage.removeItem("parola.pending"); }catch(_){} refresh(); }
+    else if(e.status!==401) toast("Non riesco a salvare: riprovo appena torna la connessione.",2500);
+  });
+  return chain;
+}
+addEventListener("online",flush);
+
+function loadToday(){
+  const rec=records["g"+today];
+  guesses = rec&&Array.isArray(rec.guesses)? rec.guesses.filter(g=>typeof g==="string"&&g.length===LEN).slice(0,ROWS) : [];
+  done=!!(rec&&rec.done); won=!!(rec&&rec.won); current="";
+  paintBoard(); paintKb();
+}
+
+// ---- stats ----
+function computeStats(){
+  const fin=new Set(), wonD=new Set(), dist=[0,0,0,0,0,0];
+  Object.values(records).forEach(r=>{ if(!r||!r.done) return; fin.add(r.day); if(r.won){ wonD.add(r.day); const n=(r.guesses||[]).length; if(n>=1&&n<=6) dist[n-1]++; } });
+  let played=fin.size, max=0;
+  if(base){ played+=base.played||0; (base.dist||[]).forEach((v,i)=>dist[i]+=v||0); max=base.maxStreak||0; }
+  const wins=dist.reduce((a,b)=>a+b,0);
+  // current streak
+  let d=wonD.has(today)?today:today-1, run=0;
+  while(wonD.has(d)){ run++; d--; }
+  let streak=run;
+  if(base && d<=base.day && !fin.has(d)) streak+=base.streak||0;
+  // best run among own games
+  const days=[...wonD].sort((a,b)=>a-b); let cur=0,prev=null;
+  days.forEach(x=>{ cur=(prev!==null&&x===prev+1)?cur+1:1; prev=x; if(cur>max) max=cur; });
+  if(streak>max) max=streak;
+  return {played,wins,pct:played?Math.round(wins/played*100):0,streak,max,dist};
+}
+function paintStats(){
+  const s=computeStats();
+  $("sPlayed").textContent=s.played; $("sPct").textContent=s.pct; $("sStreak").textContent=s.streak; $("sMax").textContent=s.max;
+  const top=Math.max(1,...s.dist), el=$("dist"); el.innerHTML="";
+  s.dist.forEach((v,i)=>{
+    const n=document.createElement("div"); n.className="n"; n.textContent=i+1;
+    const wrap=document.createElement("div"); const b=document.createElement("div");
+    b.className="bar"+(won&&guesses.length===i+1?" now":""); b.style.width=Math.max(7,v/top*100)+"%"; b.textContent=v;
+    wrap.appendChild(b); el.appendChild(n); el.appendChild(wrap);
+  });
+  $("shareBtn").hidden=!done;
+  $("impClear").hidden=!base;
+  $("impNote").textContent=base?"Importate il "+new Date(Date.UTC(2026,10,1)+(base.day-1)*864e5).toLocaleDateString("it-IT",{day:"numeric",month:"long",timeZone:"UTC"}):"";
+  if(base){ $("iPlayed").value=base.played; $("iStreak").value=base.streak; $("iMax").value=base.maxStreak; (base.dist||[]).forEach((v,i)=>$("iD"+i).value=v); }
+}
+function header(){
+  const s=ready?computeStats():null;
+  $("sub").textContent="N° "+today+" · "+dateLabel()+(s&&s.streak?" · 🔥 "+s.streak:"");
+}
+
+// ---- sheet ----
+function openSheet(which){ $("statsView").hidden=which!=="stats"; $("helpView").hidden=which!=="help"; $("sheet").hidden=false; if(which==="stats") paintStats(); $("closeBtn").focus(); }
+function openStats(){ openSheet("stats"); }
+function closeSheet(){ $("sheet").hidden=true; }
+$("statsBtn").onclick=()=>openSheet("stats");
+$("helpBtn").onclick=()=>openSheet("help");
+$("closeBtn").onclick=closeSheet;
+$("sheet").addEventListener("click",e=>{ if(e.target.id==="sheet") closeSheet(); });
+
+// import form
+for(let i=0;i<6;i++){ const l=document.createElement("label"); l.htmlFor="iD"+i; l.textContent=i+1; const inp=document.createElement("input"); inp.type="number"; inp.min="0"; inp.id="iD"+i; inp.inputMode="numeric"; l.appendChild(inp); $("iDist").appendChild(l); }
+const num=id=>Math.max(0,parseInt($(id).value,10)||0);
+$("impSave").onclick=async()=>{
+  const dist=[0,1,2,3,4,5].map(i=>num("iD"+i)), played=num("iPlayed");
+  const wins=dist.reduce((a,b)=>a+b,0);
+  if(!played){ toast("Inserisci almeno il numero di partite"); return; }
+  if(wins>played){ toast("La distribuzione supera il numero di partite",2200); return; }
+  base={played,dist,streak:num("iStreak"),maxStreak:Math.max(num("iMax"),num("iStreak")),day:today};
+  await writeBase(); paintStats(); header(); toast("Statistiche importate");
+};
+$("impClear").onclick=async()=>{
+  if($("impClear").dataset.sure!=="1"){ $("impClear").dataset.sure="1"; $("impClear").textContent="Tocca di nuovo per confermare"; return; }
+  $("impClear").dataset.sure=""; $("impClear").textContent="Rimuovi importazione";
+  base=null; await writeBase(); ["iPlayed","iStreak","iMax","iD0","iD1","iD2","iD3","iD4","iD5"].forEach(id=>$(id).value=""); paintStats(); header(); toast("Importazione rimossa");
+};
+async function writeBase(){
+  try{ await (base?api("PUT","/api/base",base):api("DELETE","/api/base")); }
+  catch(e){ if(e.status!==401) toast("Non riesco a salvare. Controlla la connessione.",2500); }
+}
+
+// share
+$("shareBtn").onclick=async()=>{
+  const em={correct:"🟩",present:"🟨",absent:"⬜"};
+  const grid=guesses.map(g=>score(g,answer).map(s=>em[s]).join("")).join("\n");
+  const text="Parola N° "+today+" "+(won?guesses.length:"X")+"/6\n\n"+grid;
+  try{ await navigator.clipboard.writeText(text); toast("Copiato! Incollalo dove vuoi"); }
+  catch(_){ toast("Copia non riuscita su questo dispositivo",2200); }
+};
+
+// countdown + day rollover
+function tick(){
+  const now=new Date(), next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+  const s=Math.max(0,Math.floor((next-now)/1000)), p=n=>String(n).padStart(2,"0");
+  $("countdown").textContent=p(Math.floor(s/3600))+":"+p(Math.floor(s%3600/60))+":"+p(s%60);
+  const n=dayNum(now);
+  if(n!==today && !busy){ today=n; answer=wordFor(n); loadToday(); header(); if(!$("sheet").hidden) paintStats(); }
+}
+setInterval(tick,1000);
+
+// ---- account ----
+let me=null;
+function applyData(d){
+  me=d.name; const recs={};
+  (d.games||[]).forEach(g=>{ recs["g"+g.day]=g; });
+  // a move made offline that never reached the server
+  try{ const p=JSON.parse(localStorage.getItem("parola.pending")||"null");
+    if(p&&p.day&&Array.isArray(p.guesses)){ const s=recs["g"+p.day]; if(!s||(!s.done&&(s.guesses||[]).length<p.guesses.length)){ recs["g"+p.day]=p; pending=p; } else localStorage.removeItem("parola.pending"); } }catch(_){}
+  records=recs; base=d.base||null;
+  $("who").textContent="Ciao "+me;
+}
+async function refresh(){
+  try{
+    const d=await api("GET","/api/me");
+    applyData(d);
+    if(!ready){ ready=true; $("auth").hidden=true; loadToday(); }
+    else if(!busy){ const r=records["g"+today]; if(r&&(r.guesses||[]).length!==guesses.length){ const t=current; loadToday(); current=t; paintTyping(); } }
+    header(); if(!$("sheet").hidden&&!$("statsView").hidden) paintStats();
+    flush();
+  }catch(e){
+    if(e.status!==401 && !ready){ $("sub").textContent="Server non raggiungibile. Riprovo…"; setTimeout(refresh,4000); }
+  }
+}
+function showAuth(){
+  ready=false; me=null; records={}; base=null; guesses=[]; current=""; done=false; won=false;
+  closeSheet(); paintBoard(); paintKb(); $("auth").hidden=false;
+  setTimeout(()=>$("aName").focus(),50);
+}
+let mode="login";
+function setMode(m){
+  mode=m;
+  $("tabLogin").setAttribute("aria-selected",m==="login"); $("tabReg").setAttribute("aria-selected",m==="reg");
+  $("codeRow").hidden=m!=="reg"; $("passHint").hidden=m!=="reg";
+  $("aPass").autocomplete=m==="reg"?"new-password":"current-password";
+  $("authBtn").textContent=m==="reg"?"Crea account":"Accedi";
+  $("authErr").textContent="";
+}
+$("tabLogin").onclick=()=>setMode("login");
+$("tabReg").onclick=()=>setMode("reg");
+$("authForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const name=$("aName").value.trim(), password=$("aPass").value;
+  if(!name||!password){ $("authErr").textContent="Scrivi nome e password."; return; }
+  $("authBtn").disabled=true; $("authErr").textContent="";
+  try{
+    await api("POST",mode==="reg"?"/api/register":"/api/login",{name,password,invite:$("aCode").value});
+    $("aPass").value=""; $("aCode").value="";
+    await refresh();
+    if(mode==="reg") setTimeout(()=>openSheet("help"),300);
+  }catch(err){ $("authErr").textContent=err.status?err.message:"Server non raggiungibile. Controlla la connessione."; }
+  finally{ $("authBtn").disabled=false; }
+});
+$("logoutBtn").onclick=async()=>{ try{ await api("POST","/api/logout"); }catch(_){} try{ localStorage.removeItem("parola.pending"); }catch(_){} showAuth(); };
+$("delOpen").onclick=()=>{ $("delBox").hidden=!$("delBox").hidden; };
+$("delBtn").onclick=async()=>{
+  try{ await api("POST","/api/delete-account",{password:$("delPass").value}); $("delPass").value=""; $("delBox").hidden=true; showAuth(); toast("Account eliminato",2200); }
+  catch(err){ toast(err.message||"Non riuscito",2200); }
+};
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ready) refresh(); });
+
+// ---- boot ----
+buildBoard(); buildKb(); paintBoard(); header(); tick();
+(async()=>{
+  try{ await api("GET","/api/me").then(d=>{ applyData(d); ready=true; loadToday(); header(); flush(); }); }
+  catch(e){ if(e.status!==401){ $("sub").textContent="Server non raggiungibile. Riprovo…"; setTimeout(refresh,4000); } }
+})();
+})();
+</script>
+</body>
+</html>

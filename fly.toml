@@ -1,0 +1,32 @@
+# Cambia "app" con il nome scelto durante `fly launch` se è diverso.
+app = "parola-famiglia"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "8080"
+  DB_PATH = "/data/parola.db"
+
+[mounts]
+  source = "parola_dati"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

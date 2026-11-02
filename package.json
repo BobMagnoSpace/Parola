@@ -1,0 +1,12 @@
+{
+  "name": "parola",
+  "version": "1.0.0",
+  "private": true,
+  "description": "La parola del giorno, per la famiglia",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "build": "node build.js"
+  },
+  "engines": { "node": ">=22.13" }
+}
