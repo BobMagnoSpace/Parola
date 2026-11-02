@@ -455,7 +455,12 @@ async function writeBase(){
 $("shareBtn").onclick=async()=>{
   const em={correct:"🟩",present:"🟨",absent:"⬜"};
   const grid=guesses.map(g=>score(g,answer).map(s=>em[s]).join("")).join("\n");
-  const text="Parola N° "+today+" "+(won?guesses.length:"X")+"/6\n\n"+grid;
+  const text="Par🇮🇹la n°"+today+" "+(won?guesses.length:"X")+"/6\n\n"+grid;
+  // On phones: open the share sheet (Messages, WhatsApp…). The word itself is never included.
+  if(navigator.share){
+    try{ await navigator.share({text}); return; }
+    catch(e){ if(e&&e.name==="AbortError") return; }
+  }
   try{ await navigator.clipboard.writeText(text); toast("Copiato! Incollalo dove vuoi"); }
   catch(_){ toast("Copia non riuscita su questo dispositivo",2200); }
 };

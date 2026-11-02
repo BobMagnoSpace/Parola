@@ -1,5 +1,5 @@
 # Cambia "app" con il nome scelto durante `fly launch` se è diverso.
-app = "parola-famiglia"
+app = "parola-in-famiglia"
 primary_region = "iad"
 
 [build]
