@@ -56,6 +56,7 @@ const q = {
   putGame: db.prepare(`INSERT INTO games (user_id, day, guesses, done, won, updated) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id, day) DO UPDATE SET guesses = excluded.guesses, done = excluded.done, won = excluded.won, updated = excluded.updated`),
   base: db.prepare("SELECT data FROM base WHERE user_id = ?"),
+  group: db.prepare("SELECT u.id, u.name, g.day, g.guesses, g.done, g.won FROM users u LEFT JOIN games g ON g.user_id = u.id ORDER BY u.id, g.day"),
   putBase: db.prepare("INSERT INTO base (user_id, data) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data"),
   delBase: db.prepare("DELETE FROM base WHERE user_id = ?"),
 };
@@ -192,6 +193,15 @@ async function handle(req, res) {
     const games = q.games.all(user.id).map((g) => ({ day: g.day, guesses: JSON.parse(g.guesses), done: !!g.done, won: !!g.won }));
     const b = q.base.get(user.id);
     return json(res, 200, { name: user.name, games, base: b ? JSON.parse(b.data) : null });
+  }
+  // Classifica di famiglia: solo numeri, mai le parole scritte.
+  if (m === "GET" && p === "/api/group") {
+    const people = new Map();
+    for (const r of q.group.all()) {
+      if (!people.has(r.id)) people.set(r.id, { name: r.name, me: r.id === user.id, games: [] });
+      if (r.day != null) people.get(r.id).games.push({ day: r.day, done: !!r.done, won: !!r.won, n: JSON.parse(r.guesses).length });
+    }
+    return json(res, 200, { people: [...people.values()] });
   }
   let mm;
   if (m === "PUT" && (mm = p.match(/^\/api\/game\/(\d{1,6})$/))) {

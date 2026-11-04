@@ -101,6 +101,19 @@ summary{cursor:pointer;font-weight:700;font-size:.88rem;color:var(--accent)}
 label{display:flex;flex-direction:column;gap:3px;font-size:.74rem;color:var(--muted);font-weight:500;min-width:0}
 input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
 .note{font-size:.78rem;color:var(--muted)}
+.gwrap{overflow-x:auto;margin:0 -4px}
+.gtab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.9rem}
+.gtab th{font-size:.68rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:right;padding:6px 5px;border-bottom:1px solid var(--line);white-space:nowrap}
+.gtab td{text-align:right;padding:9px 5px;border-bottom:1px solid var(--line);white-space:nowrap}
+.gtab th:first-child,.gtab td:first-child{text-align:left;white-space:normal;word-break:break-word}
+.gtab td:first-child{font-weight:700}
+.gtab tr.me td{background:color-mix(in srgb, var(--hit) 12%, transparent)}
+.gtab .rank{color:var(--muted);font-weight:500;margin-right:4px}
+.gtab .big{font-family:var(--f-display);font-weight:600;font-size:1.05rem}
+.pill{display:inline-block;border-radius:999px;padding:2px 8px;font-size:.78rem;font-weight:700;color:var(--tile-ink)}
+.pill.w{background:var(--hit)} .pill.l{background:var(--miss)} .pill.p{background:var(--near)}
+.dash{color:var(--muted)}
+.gnote{margin-top:12px;text-align:center}
 .help ol{padding-left:20px;margin:0 0 12px;line-height:1.5;font-size:.9rem}
 .ex{display:flex;gap:4px;margin:6px 0}
 .ex .tile{width:34px;height:34px;font-size:1.1rem;flex:none}
@@ -152,6 +165,7 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
   </div>
   <div style="display:flex;gap:6px">
     <button class="icon-btn" id="helpBtn" aria-label="Come si gioca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg></button>
+    <button class="icon-btn" id="groupBtn" aria-label="Classifica di famiglia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg></button>
     <button class="icon-btn" id="statsBtn" aria-label="Statistiche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
   </div>
 </header>
@@ -182,6 +196,15 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
       <div class="acct">
         <button class="btn ghost" id="logoutBtn">Esci</button>
       </div>
+    </div>
+    <div id="groupView" hidden>
+      <h2>Classifica di famiglia</h2>
+      <p class="who" id="groupSub">Caricamento…</p>
+      <div class="gwrap"><table class="gtab" id="gtab">
+        <thead><tr><th scope="col">Nome</th><th scope="col">🔥 Serie</th><th scope="col">Record</th><th scope="col">% Vinte</th><th scope="col">Media</th><th scope="col">Oggi</th></tr></thead>
+        <tbody id="gbody"></tbody>
+      </table></div>
+      <p class="note gnote">Media = tentativi in media per indovinare. Le parole scritte dagli altri non si vedono mai.</p>
     </div>
     <div id="helpView" class="help" hidden>
       <h2>Come si gioca</h2>
@@ -358,10 +381,11 @@ function loadToday(){
 // Jolly: earned at every 25 wins in a row (max 1 held). A day with no game uses it
 // automatically and the streak survives; a lost game still ends the streak.
 const JOLLY_EVERY=25;
-function computeStats(){
+function computeStats(){ return statsFor(Object.values(records)); }
+function statsFor(list){
   const byDay={}, dist=[0,0,0,0,0,0]; let played=0;
-  Object.values(records).forEach(r=>{ if(!r||!r.day) return; byDay[r.day]=r;
-    if(r.done){ played++; if(r.won){ const n=(r.guesses||[]).length; if(n>=1&&n<=6) dist[n-1]++; } } });
+  list.forEach(r=>{ if(!r||!r.day) return; byDay[r.day]=r;
+    if(r.done){ played++; if(r.won){ const n=r.n!=null?r.n:(r.guesses||[]).length; if(n>=1&&n<=6) dist[n-1]++; } } });
   const wins=dist.reduce((a,b)=>a+b,0);
   const playedDays=Object.keys(byDay).map(Number).filter(d=>byDay[d].done);
   let streak=0, max=0, jolly=0, usedOn=[], earnedOn=null;
@@ -376,7 +400,8 @@ function computeStats(){
       else { streak=0; }
     }
   }
-  return {played,wins,pct:played?Math.round(wins/played*100):0,streak,max,dist,jolly,usedOn,earnedOn,
+  const avg=wins?dist.reduce((a,v,i)=>a+v*(i+1),0)/wins:null;
+  return {played,wins,pct:played?Math.round(wins/played*100):0,streak,max,dist,jolly,usedOn,earnedOn,avg,byDay,
     nextAt:(Math.floor(streak/JOLLY_EVERY)+1)*JOLLY_EVERY};
 }
 function paintStats(){
@@ -401,10 +426,33 @@ function header(){
 }
 
 // ---- sheet ----
-function openSheet(which){ $("statsView").hidden=which!=="stats"; $("helpView").hidden=which!=="help"; $("sheet").hidden=false; if(which==="stats") paintStats(); $("closeBtn").focus(); }
+function openSheet(which){ $("statsView").hidden=which!=="stats"; $("helpView").hidden=which!=="help"; $("groupView").hidden=which!=="group"; $("sheet").hidden=false; if(which==="stats") paintStats(); if(which==="group") loadGroup(); $("closeBtn").focus(); }
+async function loadGroup(){
+  $("groupSub").textContent="Caricamento…";
+  let data; try{ data=await api("GET","/api/group"); }catch(e){ $("groupSub").textContent="Non riesco a caricare la classifica. Riprova tra poco."; return; }
+  const rows=data.people.map(p=>({p,s:statsFor(p.games)})).filter(x=>x.s.played||x.s.byDay[today])
+    .sort((a,b)=>b.s.streak-a.s.streak||b.s.max-a.s.max||b.s.pct-a.s.pct||a.p.name.localeCompare(b.p.name));
+  const tb=$("gbody"); tb.innerHTML="";
+  const fmt=n=>n==null?"–":n.toFixed(1).replace(".",",");
+  let doneToday=0;
+  rows.forEach((x,i)=>{
+    const tr=document.createElement("tr"); if(x.p.me) tr.className="me";
+    const td=()=>{ const c=document.createElement("td"); tr.appendChild(c); return c; };
+    const n=td(); const r=document.createElement("span"); r.className="rank"; r.textContent=(i+1)+"."; n.appendChild(r); n.appendChild(document.createTextNode(x.p.name));
+    const st=td(); st.className="big"; st.textContent=x.s.streak+(x.s.jolly?" 🃏":"");
+    td().textContent=x.s.max; td().textContent=x.s.pct+"%"; td().textContent=fmt(x.s.avg);
+    const t=x.s.byDay[today], o=td(), pill=document.createElement("span");
+    if(t&&t.done){ doneToday++; pill.className="pill "+(t.won?"w":"l"); pill.textContent=t.won?t.n+"/6":"X/6"; o.appendChild(pill); }
+    else if(t&&t.n){ pill.className="pill p"; pill.textContent="in corso"; o.appendChild(pill); }
+    else { o.className="dash"; o.textContent="–"; }
+    tb.appendChild(tr);
+  });
+  $("groupSub").textContent = rows.length ? (doneToday+" su "+rows.length+" hanno già giocato la N° "+today) : "Nessuno ha ancora giocato.";
+}
 function openStats(){ openSheet("stats"); }
 function closeSheet(){ $("sheet").hidden=true; }
 $("statsBtn").onclick=()=>openSheet("stats");
+$("groupBtn").onclick=()=>openSheet("group");
 $("helpBtn").onclick=()=>openSheet("help");
 $("closeBtn").onclick=closeSheet;
 $("sheet").addEventListener("click",e=>{ if(e.target.id==="sheet") closeSheet(); });
