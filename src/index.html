@@ -102,10 +102,14 @@ label{display:flex;flex-direction:column;gap:3px;font-size:.74rem;color:var(--mu
 input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
 .note{font-size:.78rem;color:var(--muted)}
 .gwrap{overflow-x:auto;margin:0 -4px}
-.gtab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.9rem}
-.gtab th{font-size:.68rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:right;padding:6px 5px;border-bottom:1px solid var(--line);white-space:nowrap}
-.gtab td{text-align:right;padding:9px 5px;border-bottom:1px solid var(--line);white-space:nowrap}
-.gtab th:first-child,.gtab td:first-child{text-align:left;white-space:normal;word-break:break-word}
+.gtab{width:100%;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.9rem}
+.gtab th{font-size:.64rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:right;padding:6px 4px;border-bottom:1px solid var(--line);white-space:nowrap}
+.gtab td{text-align:right;padding:10px 4px;border-bottom:1px solid var(--line);white-space:nowrap}
+.gtab th:first-child,.gtab td:first-child{text-align:left;padding-left:2px}
+.gtab td:first-child{overflow:hidden;text-overflow:ellipsis}
+.gtab col.c-s{width:12%} .gtab col.c-r{width:16%} .gtab col.c-v{width:15%} .gtab col.c-m{width:14%} .gtab col.c-o{width:17%}
+.gtab th{letter-spacing:0}
+.pill{padding:2px 6px}
 .gtab td:first-child{font-weight:700}
 .gtab tr.me td{background:color-mix(in srgb, var(--hit) 12%, transparent)}
 .gtab .rank{color:var(--muted);font-weight:500;margin-right:4px}
@@ -201,7 +205,8 @@ input[type=number]{font:500 .95rem var(--f-body);padding:7px 6px;border:1px soli
       <h2>Classifica di famiglia</h2>
       <p class="who" id="groupSub">Caricamento…</p>
       <div class="gwrap"><table class="gtab" id="gtab">
-        <thead><tr><th scope="col">Nome</th><th scope="col">🔥 Serie</th><th scope="col">Record</th><th scope="col">% Vinte</th><th scope="col">Media</th><th scope="col">Oggi</th></tr></thead>
+        <colgroup><col><col class="c-s"><col class="c-r"><col class="c-v"><col class="c-m"><col class="c-o"></colgroup>
+        <thead><tr><th scope="col">Nome</th><th scope="col">Serie</th><th scope="col">Record</th><th scope="col">Vinte</th><th scope="col">Media</th><th scope="col">Oggi</th></tr></thead>
         <tbody id="gbody"></tbody>
       </table></div>
       <p class="note gnote">Media = tentativi in media per indovinare. Le parole scritte dagli altri non si vedono mai.</p>
@@ -438,7 +443,7 @@ async function loadGroup(){
   rows.forEach((x,i)=>{
     const tr=document.createElement("tr"); if(x.p.me) tr.className="me";
     const td=()=>{ const c=document.createElement("td"); tr.appendChild(c); return c; };
-    const n=td(); const r=document.createElement("span"); r.className="rank"; r.textContent=(i+1)+"."; n.appendChild(r); n.appendChild(document.createTextNode(x.p.name));
+    const n=td(); n.textContent=x.p.name; n.title=x.p.name;
     const st=td(); st.className="big"; st.textContent=x.s.streak+(x.s.jolly?" 🃏":"");
     td().textContent=x.s.max; td().textContent=x.s.pct+"%"; td().textContent=fmt(x.s.avg);
     const t=x.s.byDay[today], o=td(), pill=document.createElement("span");
