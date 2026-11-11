@@ -346,7 +346,7 @@ function submit(){
   }
   setTimeout(()=>{
     busy=false; paintKb();
-    if(won){ row.classList.add("win"); const js=computeStats(); if(js.earnedOn===today) setTimeout(()=>toast("🃏 "+js.streak+" di fila: hai guadagnato un jolly!",2600),1900); toast(["Solo la zia!","🚀🚀","👏🏼👏🏼👏🏼","🤔","Daje!!","Per un pelo!"][r],1800); setTimeout(()=>openStats(),1900); }
+    if(won){ row.classList.add("win"); const js=computeStats(); if(js.earnedOn===today) setTimeout(()=>toast("🃏 "+js.streak+" di fila: hai guadagnato un jolly!",2600),1900); toast(["Solo la zia!","🚀🚀","👏🏼👏🏼👏🏼","👍","🤔","Daje!!"][r],1800); setTimeout(()=>openStats(),1900); }
     else if(done){ toast("La parola era "+answer.toUpperCase(),3500); setTimeout(()=>openStats(),2600); }
   }, step*LEN+300);
 }
