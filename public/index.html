@@ -238,9 +238,11 @@ const OK=new Set("abaca abaco abano abate abati abato abavi abavo abbai abbia ab
 "use strict";
 const LEN=5, ROWS=6;
 // ---- date: calendar day number, independent of DST ----
-const EPOCH=Date.UTC(2026,10,1);
+// N° 1 = 2 novembre 2026 (la partita del 1° novembre è stata tolta).
+const EPOCH=Date.UTC(2026,10,2);
 function dayNum(d){d=d||new Date();return Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-EPOCH)/864e5)+1;}
-function wordFor(n){const L=SOL.length;return SOL[((n-1)%L+L)%L];}
+// Same word for the same calendar date as before the renumbering.
+function wordFor(n){const L=SOL.length;return SOL[(n%L+L)%L];}
 function dateLabel(){return new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});}
 
 // ---- state ----
@@ -351,7 +353,7 @@ function submit(){
 
 // ---- persistence ----
 async function api(method,url,body){
-  const r=await fetch(url,{method,headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
+  const r=await fetch(url,{method,headers:Object.assign({"X-Parola-Days":"2"},body?{"Content-Type":"application/json"}:{}),body:body?JSON.stringify(body):undefined,credentials:"same-origin"});
   let data={}; try{ data=await r.json(); }catch(_){}
   if(r.status===401 && url!=="/api/login"){ showAuth(); }
   if(!r.ok){ const e=new Error(data.error||"Errore"); e.status=r.status; throw e; }
@@ -361,16 +363,16 @@ let chain=Promise.resolve(), pending=null;
 function saveGame(){
   const rec={day:today,guesses:guesses.slice(),done:done,won:won};
   records["g"+today]=rec;
-  try{ localStorage.setItem("parola.pending", JSON.stringify(rec)); }catch(_){}
+  try{ localStorage.setItem("parola.pending2", JSON.stringify(rec)); }catch(_){}
   pending=rec; flush();
 }
 function flush(){
   if(!pending) return chain;
   const rec=pending;
   chain=chain.then(()=>api("PUT","/api/game/"+rec.day,rec)).then(()=>{
-    if(pending===rec){ pending=null; try{ localStorage.removeItem("parola.pending"); }catch(_){} }
+    if(pending===rec){ pending=null; try{ localStorage.removeItem("parola.pending2"); }catch(_){} }
   },e=>{
-    if(e.status===409||e.status===400){ if(pending===rec) pending=null; try{ localStorage.removeItem("parola.pending"); }catch(_){} refresh(); }
+    if(e.status===409||e.status===400){ if(pending===rec) pending=null; try{ localStorage.removeItem("parola.pending2"); }catch(_){} refresh(); }
     else if(e.status!==401) toast("Non riesco a salvare: riprovo appena torna la connessione.",2500);
   });
   return chain;
@@ -494,8 +496,8 @@ function applyData(d){
   me=d.name; const recs={};
   (d.games||[]).forEach(g=>{ recs["g"+g.day]=g; });
   // a move made offline that never reached the server
-  try{ const p=JSON.parse(localStorage.getItem("parola.pending")||"null");
-    if(p&&p.day&&Array.isArray(p.guesses)){ const s=recs["g"+p.day]; if(!s||(!s.done&&(s.guesses||[]).length<p.guesses.length)){ recs["g"+p.day]=p; pending=p; } else localStorage.removeItem("parola.pending"); } }catch(_){}
+  try{ const p=JSON.parse(localStorage.getItem("parola.pending2")||"null");
+    if(p&&p.day&&Array.isArray(p.guesses)){ const s=recs["g"+p.day]; if(!s||(!s.done&&(s.guesses||[]).length<p.guesses.length)){ recs["g"+p.day]=p; pending=p; } else localStorage.removeItem("parola.pending2"); } }catch(_){}
   records=recs; base=null;
   $("who").textContent="Ciao "+me;
 }
@@ -540,7 +542,7 @@ $("authForm").addEventListener("submit",async e=>{
   }catch(err){ $("authErr").textContent=err.status?err.message:"Server non raggiungibile. Controlla la connessione."; }
   finally{ $("authBtn").disabled=false; }
 });
-$("logoutBtn").onclick=async()=>{ try{ await api("POST","/api/logout"); }catch(_){} try{ localStorage.removeItem("parola.pending"); }catch(_){} showAuth(); };
+$("logoutBtn").onclick=async()=>{ try{ await api("POST","/api/logout"); }catch(_){} try{ localStorage.removeItem("parola.pending2"); }catch(_){} showAuth(); };
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&ready) refresh(); });
 
 // Coming back to a finished game: show stats and Condividi straight away, like the old game.

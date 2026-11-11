@@ -41,7 +41,22 @@ db.exec(`
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     data TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 `);
+
+// Rinumerazione una tantum: si toglie la partita N° 1 (1° novembre) e tutte le altre scalano di uno,
+// così il 2 novembre diventa la N° 1.
+if (!db.prepare("SELECT v FROM meta WHERE k = 'days2'").get()) {
+  db.exec("BEGIN");
+  try {
+    const del = db.prepare("DELETE FROM games WHERE day = 1").run().changes;
+    db.exec("UPDATE games SET day = -day");
+    db.exec("UPDATE games SET day = -day - 1");
+    db.prepare("INSERT INTO meta (k, v) VALUES ('days2', ?)").run(new Date().toISOString());
+    db.exec("COMMIT");
+    console.log(`Rinumerazione fatta: tolte ${del} partite del giorno 1, le altre scalate di uno`);
+  } catch (e) { db.exec("ROLLBACK"); throw e; }
+}
 
 const q = {
   userByName: db.prepare("SELECT * FROM users WHERE name = ?"),
@@ -204,6 +219,8 @@ async function handle(req, res) {
     return json(res, 200, { people: [...people.values()] });
   }
   let mm;
+  // Una pagina aperta prima della rinumerazione userebbe i numeri vecchi: le chiediamo di ricaricarsi.
+  if (m !== "GET" && req.headers["x-parola-days"] !== "2") return fail(res, 426, "Il gioco è stato aggiornato: ricarica la pagina.");
   if (m === "PUT" && (mm = p.match(/^\/api\/game\/(\d{1,6})$/))) {
     const day = Number(mm[1]);
     const g = body.guesses;
