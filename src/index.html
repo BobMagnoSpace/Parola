@@ -438,7 +438,7 @@ async function loadGroup(){
   $("groupSub").textContent="Caricamento…";
   let data; try{ data=await api("GET","/api/group"); }catch(e){ $("groupSub").textContent="Non riesco a caricare la classifica. Riprova tra poco."; return; }
   const rows=data.people.map(p=>({p,s:statsFor(p.games)})).filter(x=>x.s.played||x.s.byDay[today])
-    .sort((a,b)=>b.s.streak-a.s.streak||b.s.max-a.s.max||b.s.pct-a.s.pct||a.p.name.localeCompare(b.p.name));
+    .sort((a,b)=>b.s.streak-a.s.streak||b.s.max-a.s.max||b.s.pct-a.s.pct||(a.s.avg??9)-(b.s.avg??9)||a.p.name.localeCompare(b.p.name));
   const tb=$("gbody"); tb.innerHTML="";
   const fmt=n=>n==null?"–":n.toFixed(1).replace(".",",");
   let doneToday=0;
